@@ -1,0 +1,24 @@
+name: Library Triage
+# optional list of dependencies to be included
+# requires: <plugin ID>
+description: Adds a largest-files triage page and auto-tags scenes from female performer rating/age signals.
+version: 0.1.0
+url: https://example.invalid/stash-library-triage-plugin
+
+ui:
+  javascript:
+    - ui/triage-ui.js
+  css:
+    - ui/triage-ui.css
+
+interface: js
+exec:
+  - hooks/scene-triage-tags.js
+
+hooks:
+  - name: Auto-tag scene from female performer signals
+    description: Updates triage tags on scene create/update.
+    triggeredBy:
+      - Scene.Create.Post
+      - Scene.Update.Post
+      - Performer.Update.Post

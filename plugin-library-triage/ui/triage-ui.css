@@ -1,0 +1,25 @@
+.library-triage-page {
+  padding: 1rem;
+}
+
+.library-triage-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.library-triage-table td,
+.library-triage-table th {
+  vertical-align: middle;
+}
+
+.library-triage-muted {
+  color: #6c757d;
+  font-size: 0.9rem;
+}
+
+.library-triage-performers {
+  max-width: 28rem;
+}
