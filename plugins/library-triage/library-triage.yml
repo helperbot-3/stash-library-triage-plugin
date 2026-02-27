@@ -6,6 +6,7 @@ url: https://example.invalid/stash-library-triage-plugin
 ui:
   javascript:
     - ui/triage-ui.js
+    - ui/entities-ui.js
   css:
     - ui/triage-ui.css
 
@@ -13,10 +14,28 @@ interface: js
 exec:
   - hooks/scene-triage-tags.js
 
+tasks:
+  - name: Recompute unrated scene counts
+    description: Recomputes triage_unrated_scene_count for all performers and studios.
+    defaultArgs:
+      action: recount_unrated_all
+
 hooks:
   - name: Auto-tag scene from female performer signals
     description: Updates triage tags on scene create/update.
+    defaultArgs:
+      action: scene_tags
     triggeredBy:
       - Scene.Create.Post
       - Scene.Update.Post
       - Performer.Update.Post
+  - name: Update unrated scene counts
+    description: Updates triage_unrated_scene_count custom fields.
+    defaultArgs:
+      action: update_unrated_counts
+    triggeredBy:
+      - Scene.Create.Post
+      - Scene.Update.Post
+      - Scene.Destroy.Post
+      - Performer.Update.Post
+      - Studio.Update.Post

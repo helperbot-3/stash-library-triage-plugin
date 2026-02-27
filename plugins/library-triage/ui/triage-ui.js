@@ -506,6 +506,17 @@
               ),
             },
             null
+          ),
+          React.createElement(
+            Setting,
+            {
+              heading: React.createElement(
+                Link,
+                { to: "/plugin/library-triage-entities" },
+                React.createElement(Button, null, "Open Unrated Counts")
+              ),
+            },
+            null
           )
         ),
       },
