@@ -1,6 +1,4 @@
 name: Library Triage
-# optional list of dependencies to be included
-# requires: <plugin ID>
 description: Adds a largest-files triage page and auto-tags scenes from female performer rating/age signals.
 version: 0.1.0
 url: https://example.invalid/stash-library-triage-plugin
