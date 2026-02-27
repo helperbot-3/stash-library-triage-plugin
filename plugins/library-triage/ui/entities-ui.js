@@ -76,6 +76,7 @@
     var _b = React.useState(true), hideZero = _b[0], setHideZero = _b[1];
     var _c = React.useState({}), studioUnratedByID = _c[0], setStudioUnratedByID = _c[1];
     var _d = React.useState(false), studioCountLoading = _d[0], setStudioCountLoading = _d[1];
+    var _e = React.useState("performers"), activeTab = _e[0], setActiveTab = _e[1];
 
     var performersQuery = Apollo.useQuery(FIND_PERFORMERS, {
       variables: { filter: { per_page: -1 } },
@@ -184,11 +185,37 @@
       React.createElement(
         "div",
         { className: "library-triage-muted" },
-        "Performer and studio rankings by unrated scenes (from custom field triage_unrated_scene_count)."
+        "Performer and studio rankings by unrated scenes."
       ),
       React.createElement(
         "div",
         { className: "library-triage-toolbar" },
+        React.createElement(
+          "div",
+          { className: "btn-group", role: "group", "aria-label": "Entity view" },
+          React.createElement(
+            Button,
+            {
+              size: "sm",
+              variant: activeTab === "performers" ? "primary" : "secondary",
+              onClick: function () {
+                setActiveTab("performers");
+              },
+            },
+            "Performers"
+          ),
+          React.createElement(
+            Button,
+            {
+              size: "sm",
+              variant: activeTab === "studios" ? "primary" : "secondary",
+              onClick: function () {
+                setActiveTab("studios");
+              },
+            },
+            "Studios"
+          )
+        ),
         React.createElement("label", { htmlFor: "triage-min-unrated" }, "Min unrated scenes:"),
         React.createElement(Form.Control, {
           id: "triage-min-unrated",
@@ -232,77 +259,85 @@
         ? React.createElement("div", { className: "text-danger" }, "Studio query error: " + studiosQuery.error.message)
         : null,
 
-      React.createElement("h4", { style: { marginTop: "1rem" } }, "Performers"),
-      React.createElement(
-        Table,
-        { striped: true, bordered: false, hover: true, size: "sm", className: "library-triage-table" },
-        React.createElement(
-          "thead",
-          null,
-          React.createElement(
-            "tr",
+      activeTab === "performers"
+        ? React.createElement(
+            React.Fragment,
             null,
-            React.createElement("th", null, "Performer"),
-            React.createElement("th", null, "Rating (1-5)"),
-            React.createElement("th", null, "Scene Count"),
-            React.createElement("th", null, "Unrated Scenes")
-          )
-        ),
-        React.createElement(
-          "tbody",
-          null,
-          performerRows.map(function (row) {
-            return React.createElement(
-              "tr",
-              { key: row.id },
+            React.createElement("h4", { style: { marginTop: "1rem" } }, "Performers"),
+            React.createElement(
+              Table,
+              { striped: true, bordered: false, hover: true, size: "sm", className: "library-triage-table" },
               React.createElement(
-                "td",
+                "thead",
                 null,
-                React.createElement(Link, { to: "/performers/" + row.id }, row.name)
+                React.createElement(
+                  "tr",
+                  null,
+                  React.createElement("th", null, "Performer"),
+                  React.createElement("th", null, "Rating (1-5)"),
+                  React.createElement("th", null, "Scene Count"),
+                  React.createElement("th", null, "Unrated Scenes")
+                )
               ),
-              React.createElement("td", null, row.rating5 != null ? String(row.rating5) : "-"),
-              React.createElement("td", null, String(row.sceneCount)),
-              React.createElement("td", null, String(row.unratedCount))
-            );
-          })
-        )
-      ),
-
-      React.createElement("h4", { style: { marginTop: "1rem" } }, "Studios"),
-      React.createElement(
-        Table,
-        { striped: true, bordered: false, hover: true, size: "sm", className: "library-triage-table" },
-        React.createElement(
-          "thead",
-          null,
-          React.createElement(
-            "tr",
+              React.createElement(
+                "tbody",
+                null,
+                performerRows.map(function (row) {
+                  return React.createElement(
+                    "tr",
+                    { key: row.id },
+                    React.createElement(
+                      "td",
+                      null,
+                      React.createElement(Link, { to: "/performers/" + row.id }, row.name)
+                    ),
+                    React.createElement("td", null, row.rating5 != null ? String(row.rating5) : "-"),
+                    React.createElement("td", null, String(row.sceneCount)),
+                    React.createElement("td", null, String(row.unratedCount))
+                  );
+                })
+              )
+            )
+          )
+        : React.createElement(
+            React.Fragment,
             null,
-            React.createElement("th", null, "Studio"),
-            React.createElement("th", null, "Rating (1-5)"),
-            React.createElement("th", null, "Scene Count"),
-            React.createElement("th", null, "Unrated Scenes")
-          )
-        ),
-        React.createElement(
-          "tbody",
-          null,
-          studioRows.map(function (row) {
-            return React.createElement(
-              "tr",
-              { key: row.id },
+            React.createElement("h4", { style: { marginTop: "1rem" } }, "Studios"),
+            React.createElement(
+              Table,
+              { striped: true, bordered: false, hover: true, size: "sm", className: "library-triage-table" },
               React.createElement(
-                "td",
+                "thead",
                 null,
-                React.createElement(Link, { to: "/studios/" + row.id }, row.name)
+                React.createElement(
+                  "tr",
+                  null,
+                  React.createElement("th", null, "Studio"),
+                  React.createElement("th", null, "Rating (1-5)"),
+                  React.createElement("th", null, "Scene Count"),
+                  React.createElement("th", null, "Unrated Scenes")
+                )
               ),
-              React.createElement("td", null, row.rating5 != null ? String(row.rating5) : "-"),
-              React.createElement("td", null, String(row.sceneCount)),
-              React.createElement("td", null, String(row.unratedCount))
-            );
-          })
-        )
-      )
+              React.createElement(
+                "tbody",
+                null,
+                studioRows.map(function (row) {
+                  return React.createElement(
+                    "tr",
+                    { key: row.id },
+                    React.createElement(
+                      "td",
+                      null,
+                      React.createElement(Link, { to: "/studios/" + row.id }, row.name)
+                    ),
+                    React.createElement("td", null, row.rating5 != null ? String(row.rating5) : "-"),
+                    React.createElement("td", null, String(row.sceneCount)),
+                    React.createElement("td", null, String(row.unratedCount))
+                  );
+                })
+              )
+            )
+          )
     );
   }
 
