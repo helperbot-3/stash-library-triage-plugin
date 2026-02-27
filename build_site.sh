@@ -16,6 +16,7 @@ fi
 
 rm -rf "$outdir"
 mkdir -p "$outdir"
+outdir_abs="$(cd "$outdir" && pwd)"
 
 buildPlugin() 
 {
@@ -38,7 +39,7 @@ buildPlugin()
     
     # create the zip file
     # copy other files
-    zipfile="$outdir/$plugin_id.zip"
+    zipfile="$outdir_abs/$plugin_id.zip"
     
     pushd "$dir" > /dev/null
     zip -r "$zipfile" . > /dev/null
