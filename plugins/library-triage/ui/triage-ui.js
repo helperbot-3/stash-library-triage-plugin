@@ -354,6 +354,7 @@
             React.createElement("th", null, "Scene"),
             React.createElement("th", null, "Size"),
             React.createElement("th", null, "Scene Rating (1-5)"),
+            React.createElement("th", null, "Studio"),
             React.createElement("th", null, "Studio Rating (1-5)"),
             React.createElement("th", null, "Max Female Rating"),
             React.createElement("th", null, "Female Age Range"),
@@ -401,6 +402,17 @@
               ),
               React.createElement("td", null, bytesHuman(meta.sizeBytes)),
               React.createElement("td", null, meta.sceneRating5 != null ? String(meta.sceneRating5) : "-"),
+              React.createElement(
+                "td",
+                null,
+                scene.studio && scene.studio.id
+                  ? React.createElement(
+                      Link,
+                      { to: "/studios/" + scene.studio.id },
+                      scene.studio.name || "[Studio]"
+                    )
+                  : "-"
+              ),
               React.createElement("td", null, meta.studioRating5 != null ? String(meta.studioRating5) : "-"),
               React.createElement("td", null, meta.maxFemaleRating5 != null ? String(meta.maxFemaleRating5) : "-"),
               React.createElement("td", null, ageRange),
