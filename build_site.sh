@@ -1,6 +1,7 @@
 #!/bin/bash
 # AGPLv3.0
 # https://github.com/stashapp/CommunityScripts/blob/main/LICENSE
+set -euo pipefail
 
 # builds a repository of plugins
 # outputs to _site with the following structure:
@@ -42,6 +43,10 @@ buildPlugin()
     pushd "$dir" > /dev/null
     zip -r "$zipfile" . > /dev/null
     popd > /dev/null
+    if [ ! -f "$zipfile" ]; then
+        echo "ERROR: failed to create zip for $plugin_id at $zipfile" >&2
+        exit 1
+    fi
 
     name=$(grep "^name:" "$f" | head -n 1 | cut -d' ' -f2- | sed -e 's/\r//' -e 's/^"\(.*\)"$/\1/')
     description=$(grep "^description:" "$f" | head -n 1 | cut -d' ' -f2- | sed -e 's/\r//' -e 's/^"\(.*\)"$/\1/')
@@ -50,11 +55,13 @@ buildPlugin()
     dep=$(grep "^# requires:" "$f" | cut -c 12- | sed -e 's/\r//' | grep -v "<" || true)
 
     if command -v sha256sum >/dev/null 2>&1; then
-        sha_cmd="sha256sum"
-        sha_val=$($sha_cmd "$zipfile" | cut -d' ' -f1)
+        sha_val=$(sha256sum "$zipfile" | cut -d' ' -f1)
     else
-        sha_cmd="shasum -a 256"
         sha_val=$(shasum -a 256 "$zipfile" | cut -d' ' -f1)
+    fi
+    if [ -z "$sha_val" ]; then
+        echo "ERROR: failed to compute sha256 for $zipfile" >&2
+        exit 1
     fi
 
     # write to spec index
