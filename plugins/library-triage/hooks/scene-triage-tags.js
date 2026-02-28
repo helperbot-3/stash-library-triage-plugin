@@ -112,6 +112,20 @@
     return gql.Do(query, variables || {});
   }
 
+  function logRun(message) {
+    try {
+      if (log && typeof log.Info === "function") {
+        log.Info("[Library Triage] " + message);
+        return;
+      }
+      if (log && typeof log.Warn === "function") {
+        log.Warn("[Library Triage] " + message);
+      }
+    } catch (e) {
+      // no-op: logging must never break hook execution
+    }
+  }
+
   function toIntOrNull(v) {
     if (typeof v === "number" && Number.isFinite(v)) return Math.round(v);
     if (typeof v === "string" && v.trim() !== "") {
@@ -945,21 +959,50 @@
 
   function main() {
     var action = getAction();
+    var hookContext = getHookContext();
+    var trigger = hookContext && hookContext.type ? String(hookContext.type) : "manual-task";
+    var ctxID = hookContext && hookContext.id != null ? String(hookContext.id) : "n/a";
+    var result;
+
+    logRun("start action=" + action + " trigger=" + trigger + " id=" + ctxID);
 
     if (action === "update_unrated_counts" || action === "recount_unrated_all") {
-      return runUnratedCountAction();
-    }
-    if (action === "performer_rating_tags") {
-      return runPerformerRatingTagAction();
-    }
-    if (action === "backfill_scene_tags") {
-      return runBackfillSceneTagsAction();
-    }
-    if (action === "recount_all") {
-      return runFullRecountAction();
+      result = runUnratedCountAction();
+    } else if (action === "performer_rating_tags") {
+      result = runPerformerRatingTagAction();
+    } else if (action === "backfill_scene_tags") {
+      result = runBackfillSceneTagsAction();
+    } else if (action === "recount_all") {
+      result = runFullRecountAction();
+    } else {
+      result = runSceneTagAction();
     }
 
-    return runSceneTagAction();
+    if (result && result.Error) {
+      logRun(
+        "end action=" +
+          action +
+          " trigger=" +
+          trigger +
+          " id=" +
+          ctxID +
+          " status=error message=" +
+          String(result.Error)
+      );
+    } else {
+      logRun(
+        "end action=" +
+          action +
+          " trigger=" +
+          trigger +
+          " id=" +
+          ctxID +
+          " status=ok message=" +
+          String((result && result.Output) || "done")
+      );
+    }
+
+    return result;
   }
 
   main();
