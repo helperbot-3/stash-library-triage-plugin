@@ -162,6 +162,19 @@
       });
   }
 
+  function fetchAllSceneIDs() {
+    var q = "query ($filter: FindFilterType) { findScenes(filter: $filter) { scenes { id } } }";
+    var res = doGQL(q, { filter: { per_page: -1 } });
+    var scenes = res && res.findScenes ? res.findScenes.scenes : [];
+    return (scenes || [])
+      .map(function (s) {
+        return s && s.id ? String(s.id) : null;
+      })
+      .filter(function (id) {
+        return !!id;
+      });
+  }
+
   function fetchPerformer(performerID) {
     var q = "query ($id: ID!) { findPerformer(id: $id) { id custom_fields } }";
     var res = doGQL(q, { id: String(performerID) });
@@ -616,6 +629,39 @@
     return processPerformerRatingTag(String(hookContext.id));
   }
 
+  function runBackfillSceneTagsAction() {
+    var sceneIDs = fetchAllSceneIDs();
+    var processed = 0;
+    var failed = 0;
+    var firstError = null;
+
+    for (var i = 0; i < sceneIDs.length; i += 1) {
+      var result = processSceneTags(sceneIDs[i]);
+      if (result && result.Error) {
+        failed += 1;
+        if (!firstError) firstError = result.Error;
+      } else {
+        processed += 1;
+      }
+    }
+
+    if (failed > 0) {
+      return {
+        Error:
+          "Backfill completed with failures. processed=" +
+          processed +
+          ", failed=" +
+          failed +
+          ", first_error=" +
+          firstError,
+      };
+    }
+
+    return {
+      Output: "Backfilled scene triage tags for " + processed + " scenes.",
+    };
+  }
+
   function main() {
     var action = getAction();
 
@@ -624,6 +670,9 @@
     }
     if (action === "performer_rating_tags") {
       return runPerformerRatingTagAction();
+    }
+    if (action === "backfill_scene_tags") {
+      return runBackfillSceneTagsAction();
     }
 
     return runSceneTagAction();

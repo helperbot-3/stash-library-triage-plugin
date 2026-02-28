@@ -19,6 +19,10 @@ tasks:
     description: Recomputes triage_unrated_scene_count for all performers.
     defaultArgs:
       action: recount_unrated_all
+  - name: Backfill scene triage tags
+    description: Recomputes managed triage tags for all scenes.
+    defaultArgs:
+      action: backfill_scene_tags
 
 hooks:
   - name: Auto-tag scene from female performer signals
