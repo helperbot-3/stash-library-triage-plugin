@@ -15,8 +15,8 @@ exec:
   - hooks/scene-triage-tags.js
 
 tasks:
-  - name: Recompute unrated scene counts
-    description: Recomputes triage_unrated_scene_count for all performers.
+  - name: Recompute performer metrics
+    description: Recomputes performer triage metrics (unrated count and total size bytes).
     defaultArgs:
       action: recount_unrated_all
   - name: Backfill scene triage tags
@@ -33,8 +33,8 @@ hooks:
       - Scene.Create.Post
       - Scene.Update.Post
       - Performer.Update.Post
-  - name: Update unrated scene counts
-    description: Updates performer triage_unrated_scene_count custom fields.
+  - name: Update performer metrics
+    description: Updates performer triage_unrated_scene_count and triage_total_size_bytes.
     defaultArgs:
       action: update_unrated_counts
     triggeredBy:

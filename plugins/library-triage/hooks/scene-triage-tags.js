@@ -17,6 +17,7 @@
   var YFEM_CANONICAL_TAG = "Age Gap: Young Female (<23y), Experienced Male (10y older)";
 
   var UNRATED_CF_KEY = "triage_unrated_scene_count";
+  var STORAGE_BYTES_CF_KEY = "triage_total_size_bytes";
 
   function getArgs() {
     if (!input) return {};
@@ -188,6 +189,24 @@
     return res && res.findPerformer ? res.findPerformer : null;
   }
 
+  function listScenesByPerformer(performerID) {
+    var q =
+      "query ($filter: FindFilterType, $scene_filter: SceneFilterType) { " +
+      "findScenes(filter: $filter, scene_filter: $scene_filter) { " +
+      "count scenes { id files { size } } } }";
+    var res = doGQL(q, {
+      filter: { per_page: -1 },
+      scene_filter: {
+        performers: { value: [String(performerID)], modifier: "INCLUDES" },
+      },
+    });
+    var node = res && res.findScenes ? res.findScenes : null;
+    return {
+      count: node ? Number(node.count || 0) : 0,
+      scenes: node && Array.isArray(node.scenes) ? node.scenes : [],
+    };
+  }
+
   function countUnratedScenesByPerformer(performerID) {
     var q = "query ($filter: FindFilterType, $scene_filter: SceneFilterType) { findScenes(filter: $filter, scene_filter: $scene_filter) { count } }";
     var res = doGQL(q, {
@@ -200,12 +219,25 @@
     return res && res.findScenes ? Number(res.findScenes.count || 0) : 0;
   }
 
-  function updatePerformerCustomFieldCount(performerID, count) {
+  function bytesFromScenes(scenes) {
+    var total = 0;
+    for (var i = 0; i < scenes.length; i += 1) {
+      var files = scenes[i] && Array.isArray(scenes[i].files) ? scenes[i].files : [];
+      for (var j = 0; j < files.length; j += 1) {
+        var size = files[j] && typeof files[j].size === "number" ? files[j].size : 0;
+        if (Number.isFinite(size) && size > 0) total += size;
+      }
+    }
+    return Math.round(total);
+  }
+
+  function updatePerformerCustomFieldsMetrics(performerID, unratedCount, storageBytes) {
     var performer = fetchPerformer(performerID);
     if (!performer) return false;
 
-    var current = getCustomFieldInt(performer.custom_fields, UNRATED_CF_KEY);
-    if (current === count) return false;
+    var currentUnrated = getCustomFieldInt(performer.custom_fields, UNRATED_CF_KEY);
+    var currentStorage = getCustomFieldInt(performer.custom_fields, STORAGE_BYTES_CF_KEY);
+    if (currentUnrated === unratedCount && currentStorage === storageBytes) return false;
 
     var q = "mutation ($input: PerformerUpdateInput!) { performerUpdate(input: $input) { id } }";
     doGQL(q, {
@@ -214,7 +246,8 @@
         custom_fields: {
           partial: (function () {
             var obj = {};
-            obj[UNRATED_CF_KEY] = count;
+            obj[UNRATED_CF_KEY] = unratedCount;
+            obj[STORAGE_BYTES_CF_KEY] = storageBytes;
             return obj;
           })(),
         },
@@ -223,9 +256,11 @@
     return true;
   }
 
-  function refreshPerformerCount(performerID) {
-    var count = countUnratedScenesByPerformer(performerID);
-    return updatePerformerCustomFieldCount(performerID, count);
+  function refreshPerformerMetrics(performerID) {
+    var unratedCount = countUnratedScenesByPerformer(performerID);
+    var listed = listScenesByPerformer(performerID);
+    var storageBytes = bytesFromScenes(listed.scenes);
+    return updatePerformerCustomFieldsMetrics(performerID, unratedCount, storageBytes);
   }
 
   function refreshCountsForScene(sceneID) {
@@ -245,7 +280,7 @@
 
     for (var i = 0; i < performerIDs.length; i += 1) {
       checked += 1;
-      if (refreshPerformerCount(performerIDs[i])) updated += 1;
+      if (refreshPerformerMetrics(performerIDs[i])) updated += 1;
     }
 
     return { updated: updated, checked: checked };
@@ -256,12 +291,12 @@
     var updated = 0;
 
     for (var i = 0; i < performerIDs.length; i += 1) {
-      if (refreshPerformerCount(performerIDs[i])) updated += 1;
+      if (refreshPerformerMetrics(performerIDs[i])) updated += 1;
     }
 
     return {
       Output:
-        "Recounted unrated scene counts. performers=" +
+        "Recounted performer metrics (unrated count + storage bytes). performers=" +
         performerIDs.length +
         ", updated=" +
         updated,
@@ -631,8 +666,8 @@
       }
 
       var performerID = String(hookContext.id);
-      var changed = refreshPerformerCount(performerID);
-      return { Output: "Performer " + performerID + " unrated_scene_count " + (changed ? "updated" : "unchanged") };
+      var changed = refreshPerformerMetrics(performerID);
+      return { Output: "Performer " + performerID + " triage metrics " + (changed ? "updated" : "unchanged") };
     }
 
     return { Output: "No count action for hook type " + hookType + ", skipping" };

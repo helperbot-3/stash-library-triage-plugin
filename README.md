@@ -6,7 +6,7 @@ This plugin helps you clean a large Stash library by:
 - filtering scenes by rating and female-performer signals
 - auto-tagging scenes from female age/rating and male-female age-gap signals
 - auto-tagging performers by star rating (`rated 1` ... `rated 5`)
-- ranking performers/studios by number of unrated scenes
+- ranking performers/studios by unrated scene count and storage usage
 
 ## Repository layout
 
@@ -41,7 +41,7 @@ This plugin helps you clean a large Stash library by:
   - female performer rating min/max (1-5)
   - female performer age min/max
 
-### 2) Unrated-count rankings page
+### 2) Entity rankings page
 - Route: `/plugin/library-triage-entities`
 - Tabbed view:
   - `Performers`
@@ -49,9 +49,11 @@ This plugin helps you clean a large Stash library by:
 - Shared controls:
   - minimum unrated count
   - hide zero
-- Count source:
+- Data source:
   - performer count: `custom_fields.triage_unrated_scene_count`
+  - performer storage: `custom_fields.triage_total_size_bytes`
   - studio count: computed live from unrated scenes
+  - studio storage: computed live from scene file sizes
 
 ## Data this plugin adds/updates
 
@@ -85,9 +87,11 @@ Notes:
 - Computed from performer `rating100` mapped to 1-5 stars
 - Existing `rated [1-5]` tags are replaced by the current one
 
-### Performer custom field (managed by plugin)
+### Performer custom fields (managed by plugin)
 - `custom_fields.triage_unrated_scene_count`
 - Number of unrated scenes linked to the performer
+- `custom_fields.triage_total_size_bytes`
+- Total size in bytes across all scene files linked to the performer
 
 ## When updates happen (hooks)
 
@@ -97,7 +101,7 @@ Notes:
   - `Scene.Update.Post`
   - `Performer.Update.Post` (when relevant performer fields changed)
 
-### Performer unrated count field
+### Performer metrics fields
 - Triggered by:
   - `Scene.Create.Post`
   - `Scene.Update.Post`
@@ -111,7 +115,9 @@ Notes:
 
 ## Manual tasks
 
-- `Recompute unrated scene counts`
-  - full recount of `triage_unrated_scene_count` for all performers
+- `Recompute performer metrics`
+  - full recount of performer metrics:
+  - `triage_unrated_scene_count`
+  - `triage_total_size_bytes`
 - `Backfill scene triage tags`
   - reprocesses all scenes and reapplies managed scene tags (age, rating, age-gap)

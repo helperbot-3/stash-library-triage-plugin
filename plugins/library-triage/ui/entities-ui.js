@@ -13,6 +13,7 @@
   var Table = Bootstrap.Table;
 
   var UNRATED_CF_KEY = "triage_unrated_scene_count";
+  var STORAGE_BYTES_CF_KEY = "triage_total_size_bytes";
 
   var FIND_PERFORMERS = Apollo.gql`
     query LibraryTriageFindPerformers($filter: FindFilterType) {
@@ -49,6 +50,19 @@
     }
   `;
 
+  var LIST_STUDIO_SCENES_FILES = Apollo.gql`
+    query LibraryTriageListStudioScenesFiles($filter: FindFilterType, $scene_filter: SceneFilterType) {
+      findScenes(filter: $filter, scene_filter: $scene_filter) {
+        scenes {
+          id
+          files {
+            size
+          }
+        }
+      }
+    }
+  `;
+
   function rating100To5(r100) {
     if (typeof r100 !== "number") return null;
     return Math.max(1, Math.min(5, Math.round(r100 / 20)));
@@ -65,6 +79,42 @@
     return 0;
   }
 
+  function getStorageBytes(customFields) {
+    if (!customFields || typeof customFields !== "object") return 0;
+    var raw = customFields[STORAGE_BYTES_CF_KEY];
+    if (typeof raw === "number" && Number.isFinite(raw)) return Math.max(0, Math.round(raw));
+    if (typeof raw === "string" && raw.trim() !== "") {
+      var n = Number(raw);
+      if (Number.isFinite(n)) return Math.max(0, Math.round(n));
+    }
+    return 0;
+  }
+
+  function bytesFromScenes(scenes) {
+    var total = 0;
+    for (var i = 0; i < scenes.length; i += 1) {
+      var files = scenes[i] && scenes[i].files ? scenes[i].files : [];
+      for (var j = 0; j < files.length; j += 1) {
+        var size = files[j] && typeof files[j].size === "number" ? files[j].size : 0;
+        if (Number.isFinite(size) && size > 0) total += size;
+      }
+    }
+    return Math.round(total);
+  }
+
+  function bytesHuman(size) {
+    if (!size || size <= 0) return "0 B";
+    var units = ["B", "KB", "MB", "GB", "TB"];
+    var idx = 0;
+    var value = size;
+    while (value >= 1024 && idx < units.length - 1) {
+      value = value / 1024;
+      idx += 1;
+    }
+    var digits = value >= 100 ? 0 : value >= 10 ? 1 : 2;
+    return value.toFixed(digits) + " " + units[idx];
+  }
+
   function byUnratedThenName(a, b) {
     if (b.unratedCount !== a.unratedCount) return b.unratedCount - a.unratedCount;
     return String(a.name || "").localeCompare(String(b.name || ""));
@@ -75,8 +125,9 @@
     var _a = React.useState("1"), minUnrated = _a[0], setMinUnrated = _a[1];
     var _b = React.useState(true), hideZero = _b[0], setHideZero = _b[1];
     var _c = React.useState({}), studioUnratedByID = _c[0], setStudioUnratedByID = _c[1];
-    var _d = React.useState(false), studioCountLoading = _d[0], setStudioCountLoading = _d[1];
-    var _e = React.useState("performers"), activeTab = _e[0], setActiveTab = _e[1];
+    var _d = React.useState({}), studioStorageByID = _d[0], setStudioStorageByID = _d[1];
+    var _e = React.useState(false), studioCountLoading = _e[0], setStudioCountLoading = _e[1];
+    var _f = React.useState("performers"), activeTab = _f[0], setActiveTab = _f[1];
 
     var performersQuery = Apollo.useQuery(FIND_PERFORMERS, {
       variables: { filter: { per_page: -1 } },
@@ -92,6 +143,7 @@
       var studios = (((studiosQuery.data || {}).findStudios || {}).studios) || [];
       if (!studios.length) {
         setStudioUnratedByID({});
+        setStudioStorageByID({});
         return;
       }
 
@@ -100,8 +152,8 @@
 
       Promise.all(
         studios.map(function (studio) {
-          return apolloClient
-            .query({
+          return Promise.all([
+            apolloClient.query({
               query: COUNT_UNRATED_BY_STUDIO,
               variables: {
                 filter: { per_page: 1 },
@@ -111,22 +163,43 @@
                 },
               },
               fetchPolicy: "network-only",
-            })
-            .then(function (res) {
-              var count = (((res.data || {}).findScenes || {}).count) || 0;
-              return { id: String(studio.id), count: Number(count) || 0 };
+            }),
+            apolloClient.query({
+              query: LIST_STUDIO_SCENES_FILES,
+              variables: {
+                filter: { per_page: -1 },
+                scene_filter: {
+                  studios: { value: [String(studio.id)], modifier: "INCLUDES" },
+                },
+              },
+              fetchPolicy: "network-only",
+            }),
+          ])
+            .then(function (allRes) {
+              var unratedRes = allRes[0];
+              var filesRes = allRes[1];
+              var count = (((unratedRes.data || {}).findScenes || {}).count) || 0;
+              var scenes = (((filesRes.data || {}).findScenes || {}).scenes) || [];
+              return {
+                id: String(studio.id),
+                count: Number(count) || 0,
+                storageBytes: bytesFromScenes(scenes),
+              };
             })
             .catch(function () {
-              return { id: String(studio.id), count: 0 };
+              return { id: String(studio.id), count: 0, storageBytes: 0 };
             });
         })
       ).then(function (pairs) {
         if (cancelled) return;
-        var next = {};
+        var nextUnrated = {};
+        var nextStorage = {};
         for (var i = 0; i < pairs.length; i += 1) {
-          next[pairs[i].id] = pairs[i].count;
+          nextUnrated[pairs[i].id] = pairs[i].count;
+          nextStorage[pairs[i].id] = pairs[i].storageBytes;
         }
-        setStudioUnratedByID(next);
+        setStudioUnratedByID(nextUnrated);
+        setStudioStorageByID(nextStorage);
         setStudioCountLoading(false);
       });
 
@@ -150,6 +223,7 @@
             rating5: rating100To5(p.rating100),
             sceneCount: typeof p.scene_count === "number" ? p.scene_count : 0,
             unratedCount: getUnratedCount(p.custom_fields),
+            storageBytes: getStorageBytes(p.custom_fields),
           };
         })
         .filter(function (p) {
@@ -169,6 +243,7 @@
             rating5: rating100To5(s.rating100),
             sceneCount: typeof s.scene_count === "number" ? s.scene_count : 0,
             unratedCount: Number(studioUnratedByID[String(s.id)] || 0),
+            storageBytes: Number(studioStorageByID[String(s.id)] || 0),
           };
         })
         .filter(function (s) {
@@ -176,16 +251,16 @@
           return s.unratedCount >= minUnratedNum;
         })
         .sort(byUnratedThenName);
-    }, [studiosQuery.data, studioUnratedByID, hideZero, minUnratedNum]);
+    }, [studiosQuery.data, studioUnratedByID, studioStorageByID, hideZero, minUnratedNum]);
 
     return React.createElement(
       "div",
       { className: "library-triage-page" },
-      React.createElement("h3", null, "Unrated Scene Counts"),
+      React.createElement("h3", null, "Entity Metrics"),
       React.createElement(
         "div",
         { className: "library-triage-muted" },
-        "Performer and studio rankings by unrated scenes."
+        "Performer and studio rankings by unrated scenes and storage."
       ),
       React.createElement(
         "div",
@@ -276,7 +351,8 @@
                   React.createElement("th", null, "Performer"),
                   React.createElement("th", null, "Rating (1-5)"),
                   React.createElement("th", null, "Scene Count"),
-                  React.createElement("th", null, "Unrated Scenes")
+                  React.createElement("th", null, "Unrated Scenes"),
+                  React.createElement("th", null, "Storage")
                 )
               ),
               React.createElement(
@@ -293,7 +369,8 @@
                     ),
                     React.createElement("td", null, row.rating5 != null ? String(row.rating5) : "-"),
                     React.createElement("td", null, String(row.sceneCount)),
-                    React.createElement("td", null, String(row.unratedCount))
+                    React.createElement("td", null, String(row.unratedCount)),
+                    React.createElement("td", null, bytesHuman(row.storageBytes))
                   );
                 })
               )
@@ -315,7 +392,8 @@
                   React.createElement("th", null, "Studio"),
                   React.createElement("th", null, "Rating (1-5)"),
                   React.createElement("th", null, "Scene Count"),
-                  React.createElement("th", null, "Unrated Scenes")
+                  React.createElement("th", null, "Unrated Scenes"),
+                  React.createElement("th", null, "Storage")
                 )
               ),
               React.createElement(
@@ -332,7 +410,8 @@
                     ),
                     React.createElement("td", null, row.rating5 != null ? String(row.rating5) : "-"),
                     React.createElement("td", null, String(row.sceneCount)),
-                    React.createElement("td", null, String(row.unratedCount))
+                    React.createElement("td", null, String(row.unratedCount)),
+                    React.createElement("td", null, bytesHuman(row.storageBytes))
                   );
                 })
               )
