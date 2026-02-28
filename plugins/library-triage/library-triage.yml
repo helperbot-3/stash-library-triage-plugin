@@ -16,7 +16,7 @@ exec:
 
 tasks:
   - name: Recompute performer metrics
-    description: Recomputes performer triage metrics (unrated count and total size bytes).
+    description: Recomputes performer metrics and studio has-unrated-scenes tag state.
     defaultArgs:
       action: recount_unrated_all
   - name: Backfill scene triage tags
@@ -34,7 +34,7 @@ hooks:
       - Scene.Update.Post
       - Performer.Update.Post
   - name: Update performer metrics
-    description: Updates performer triage_unrated_scene_count and triage_total_size_bytes.
+    description: Updates performer metrics and studio has-unrated-scenes tag state.
     defaultArgs:
       action: update_unrated_counts
     triggeredBy:

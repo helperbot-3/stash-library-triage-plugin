@@ -18,6 +18,7 @@
 
   var UNRATED_CF_KEY = "triage_unrated_scene_count";
   var STORAGE_BYTES_CF_KEY = "triage_total_size_bytes";
+  var STUDIO_UNRATED_TAG_NAME = "has unrated scenes";
 
   function getArgs() {
     if (!input) return {};
@@ -164,6 +165,19 @@
       });
   }
 
+  function fetchAllStudioIDs() {
+    var q = "query ($filter: FindFilterType) { findStudios(filter: $filter) { studios { id } } }";
+    var res = doGQL(q, { filter: { per_page: -1 } });
+    var studios = res && res.findStudios ? res.findStudios.studios : [];
+    return (studios || [])
+      .map(function (s) {
+        return s && s.id ? String(s.id) : null;
+      })
+      .filter(function (id) {
+        return !!id;
+      });
+  }
+
   function fetchAllSceneIDs() {
     var q = "query ($filter: FindFilterType) { findScenes(filter: $filter) { scenes { id } } }";
     var res = doGQL(q, { filter: { per_page: -1 } });
@@ -187,6 +201,12 @@
     var q = "query ($id: ID!) { findPerformer(id: $id) { id rating100 tags { id name } } }";
     var res = doGQL(q, { id: String(performerID) });
     return res && res.findPerformer ? res.findPerformer : null;
+  }
+
+  function fetchStudioForUnratedTag(studioID) {
+    var q = "query ($id: ID!) { findStudio(id: $id) { id tags { id name } } }";
+    var res = doGQL(q, { id: String(studioID) });
+    return res && res.findStudio ? res.findStudio : null;
   }
 
   function listScenesByPerformer(performerID) {
@@ -213,6 +233,18 @@
       filter: { per_page: 1 },
       scene_filter: {
         performers: { value: [String(performerID)], modifier: "INCLUDES" },
+        rating100: { value: 0, modifier: "IS_NULL" },
+      },
+    });
+    return res && res.findScenes ? Number(res.findScenes.count || 0) : 0;
+  }
+
+  function countUnratedScenesByStudio(studioID) {
+    var q = "query ($filter: FindFilterType, $scene_filter: SceneFilterType) { findScenes(filter: $filter, scene_filter: $scene_filter) { count } }";
+    var res = doGQL(q, {
+      filter: { per_page: 1 },
+      scene_filter: {
+        studios: { value: [String(studioID)], modifier: "INCLUDES" },
         rating100: { value: 0, modifier: "IS_NULL" },
       },
     });
@@ -294,12 +326,18 @@
       if (refreshPerformerMetrics(performerIDs[i])) updated += 1;
     }
 
+    var studioResult = recountAllStudioUnratedTags();
+
     return {
       Output:
-        "Recounted performer metrics (unrated count + storage bytes). performers=" +
+        "Recounted performer metrics + studio unrated tags. performers=" +
         performerIDs.length +
-        ", updated=" +
-        updated,
+        ", performer_updated=" +
+        updated +
+        ", studios_checked=" +
+        studioResult.checked +
+        ", studio_tag_updated=" +
+        studioResult.updated,
     };
   }
 
@@ -374,6 +412,57 @@
         tag_ids: tagIDs,
       },
     });
+  }
+
+  function updateStudioTags(studioID, tagIDs) {
+    var q = "mutation ($input: StudioUpdateInput!) { studioUpdate(input: $input) { id } }";
+    doGQL(q, {
+      input: {
+        id: String(studioID),
+        tag_ids: tagIDs,
+      },
+    });
+  }
+
+  function syncStudioUnratedTag(studioID, studioUnratedTagID) {
+    if (!studioID) return false;
+    var studio = fetchStudioForUnratedTag(studioID);
+    if (!studio) return false;
+
+    var currentTags = studio.tags || [];
+    var keepTagIDs = [];
+    var hasTag = false;
+
+    for (var i = 0; i < currentTags.length; i += 1) {
+      var t = currentTags[i];
+      if (t && String(t.id) === String(studioUnratedTagID)) {
+        hasTag = true;
+      } else if (t && t.id) {
+        keepTagIDs.push(String(t.id));
+      }
+    }
+
+    var shouldHaveTag = countUnratedScenesByStudio(studioID) > 0;
+    if (shouldHaveTag === hasTag) return false;
+
+    var nextTagIDs = shouldHaveTag ? keepTagIDs.concat([String(studioUnratedTagID)]) : keepTagIDs;
+    updateStudioTags(studioID, nextTagIDs);
+    return true;
+  }
+
+  function recountAllStudioUnratedTags() {
+    var studioIDs = fetchAllStudioIDs();
+    var studioTagID = getOrCreateTagID(STUDIO_UNRATED_TAG_NAME);
+    var updated = 0;
+
+    for (var i = 0; i < studioIDs.length; i += 1) {
+      if (syncStudioUnratedTag(studioIDs[i], studioTagID)) updated += 1;
+    }
+
+    return {
+      checked: studioIDs.length,
+      updated: updated,
+    };
   }
 
   function processPerformerRatingTag(performerID) {
@@ -642,21 +731,29 @@
     }
 
     var hookType = String(hookContext.type || "");
+    var studioTagID = getOrCreateTagID(STUDIO_UNRATED_TAG_NAME);
 
-    if (hookType === "Scene.Create.Post" || hookType === "Scene.Update.Post") {
+    if (hookType === "Scene.Create.Post") {
       var sceneResult = refreshCountsForScene(String(hookContext.id));
+      var sceneCreate = fetchSceneEntities(String(hookContext.id));
+      var studioChanged = 0;
+      if (sceneCreate && sceneCreate.studio && sceneCreate.studio.id) {
+        studioChanged = syncStudioUnratedTag(String(sceneCreate.studio.id), studioTagID) ? 1 : 0;
+      }
       return {
         Output:
-          "Refreshed unrated counts from scene " +
+          "Refreshed performer metrics + studio tag from scene " +
           String(hookContext.id) +
           ": checked=" +
           sceneResult.checked +
-          ", updated=" +
-          sceneResult.updated,
+          ", performer_updated=" +
+          sceneResult.updated +
+          ", studio_tag_updated=" +
+          studioChanged,
       };
     }
 
-    if (hookType === "Scene.Destroy.Post") {
+    if (hookType === "Scene.Update.Post" || hookType === "Scene.Destroy.Post") {
       return recountAllUnratedCounts();
     }
 

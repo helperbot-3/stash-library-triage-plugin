@@ -93,6 +93,11 @@ Notes:
 - `custom_fields.triage_total_size_bytes`
 - Total size in bytes across all scene files linked to the performer
 
+### Studio tag (managed by plugin)
+- `has unrated scenes`
+- Added when a studio has at least one unrated scene
+- Removed when all studio scenes are rated
+
 ## When updates happen (hooks)
 
 ### Scene triage tags
@@ -101,7 +106,7 @@ Notes:
   - `Scene.Update.Post`
   - `Performer.Update.Post` (when relevant performer fields changed)
 
-### Performer metrics fields
+### Performer metrics + studio unrated tag
 - Triggered by:
   - `Scene.Create.Post`
   - `Scene.Update.Post`
@@ -116,7 +121,7 @@ Notes:
 ## Manual tasks
 
 - `Recompute performer metrics`
-  - full recount of performer metrics:
+  - full recount of performer metrics and studio `has unrated scenes` tag:
   - `triage_unrated_scene_count`
   - `triage_total_size_bytes`
 - `Backfill scene triage tags`
