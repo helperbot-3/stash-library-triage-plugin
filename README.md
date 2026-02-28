@@ -110,7 +110,7 @@ Notes:
 - Triggered by:
   - `Scene.Create.Post`
   - `Scene.Update.Post` (fast path for rating/file changes, full recount when studio/performer links change)
-  - `Scene.Destroy.Post`
+  - `Scene.Destroy.Post` (fast targeted refresh from hook payload, no global recount)
   - `Performer.Update.Post`
 
 ### Performer `rated X` tags

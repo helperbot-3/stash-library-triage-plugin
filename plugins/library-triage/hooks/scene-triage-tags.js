@@ -669,6 +669,63 @@
     return false;
   }
 
+  function toStringIDArray(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map(function (v) {
+        if (v == null) return null;
+        if (typeof v === "string" || typeof v === "number") return String(v);
+        if (typeof v === "object" && v.id != null) return String(v.id);
+        return null;
+      })
+      .filter(function (id) {
+        return !!id;
+      });
+  }
+
+  function extractDestroyRefs(hookContext) {
+    var candidates = [
+      hookContext && hookContext.input,
+      hookContext && hookContext.Input,
+      hookContext && hookContext.object,
+      hookContext && hookContext.Object,
+      hookContext && hookContext.entity,
+      hookContext && hookContext.Entity,
+    ];
+    var data = null;
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (candidates[i] && typeof candidates[i] === "object") {
+        data = candidates[i];
+        break;
+      }
+    }
+    if (!data) data = {};
+
+    var performerIDs = [];
+    performerIDs = performerIDs.concat(toStringIDArray(data.performer_ids));
+    performerIDs = performerIDs.concat(toStringIDArray(data.performers));
+    performerIDs = performerIDs.concat(toStringIDArray(data.performerIds));
+
+    var studioID = null;
+    if (data.studio_id != null) studioID = String(data.studio_id);
+    if (!studioID && data.studioId != null) studioID = String(data.studioId);
+    if (!studioID && data.studio && data.studio.id != null) studioID = String(data.studio.id);
+
+    var dedup = {};
+    var finalPerformerIDs = [];
+    for (var p = 0; p < performerIDs.length; p += 1) {
+      var id = performerIDs[p];
+      if (dedup[id]) continue;
+      dedup[id] = true;
+      finalPerformerIDs.push(id);
+    }
+
+    return {
+      performerIDs: finalPerformerIDs,
+      studioID: studioID,
+    };
+  }
+
   function runSceneTagAction() {
     var hookContext = getHookContext();
     if (!hookContext || !hookContext.id) {
@@ -789,7 +846,26 @@
     }
 
     if (hookType === "Scene.Destroy.Post") {
-      return recountAllUnratedCounts();
+      var refs = extractDestroyRefs(hookContext);
+      var performerUpdated = 0;
+      for (var r = 0; r < refs.performerIDs.length; r += 1) {
+        if (refreshPerformerMetrics(refs.performerIDs[r])) performerUpdated += 1;
+      }
+      var studioUpdated = 0;
+      if (refs.studioID) {
+        studioUpdated = syncStudioUnratedTag(refs.studioID, studioTagID) ? 1 : 0;
+      }
+      return {
+        Output:
+          "Fast destroy refresh completed. performer_checked=" +
+          refs.performerIDs.length +
+          ", performer_updated=" +
+          performerUpdated +
+          ", studio_checked=" +
+          (refs.studioID ? 1 : 0) +
+          ", studio_tag_updated=" +
+          studioUpdated,
+      };
     }
 
     if (hookType === "Performer.Update.Post") {
