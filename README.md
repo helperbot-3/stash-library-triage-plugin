@@ -120,6 +120,8 @@ Notes:
 
 ## Manual tasks
 
+- `Recompute all triage data (recommended)`
+  - runs both of the tasks below in one step
 - `Recompute performer metrics`
   - full recount of performer metrics and studio `has unrated scenes` tag:
   - `triage_unrated_scene_count`

@@ -308,6 +308,11 @@
       ),
       React.createElement(
         "div",
+        { className: "library-triage-muted", style: { marginBottom: "0.75rem" } },
+        "Managed scene tags: girl-rated-*, age tags, age-gap tags. Managed performer tags: rated 1..5. Use task 'Recompute all triage data (recommended)' after major bulk edits."
+      ),
+      React.createElement(
+        "div",
         { className: "library-triage-toolbar" },
         React.createElement(Form.Check, {
           type: "checkbox",

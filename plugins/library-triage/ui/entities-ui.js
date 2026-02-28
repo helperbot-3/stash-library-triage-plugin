@@ -264,6 +264,11 @@
       ),
       React.createElement(
         "div",
+        { className: "library-triage-muted", style: { marginBottom: "0.75rem" } },
+        "Performer numbers come from custom fields triage_unrated_scene_count / triage_total_size_bytes. Studio numbers are computed live."
+      ),
+      React.createElement(
+        "div",
         { className: "library-triage-toolbar" },
         React.createElement(
           "div",

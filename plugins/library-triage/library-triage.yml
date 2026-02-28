@@ -15,6 +15,10 @@ exec:
   - hooks/scene-triage-tags.js
 
 tasks:
+  - name: Recompute all triage data (recommended)
+    description: Recomputes performer metrics, studio has-unrated tag, and all managed scene triage tags.
+    defaultArgs:
+      action: recount_all
   - name: Recompute performer metrics
     description: Recomputes performer metrics and studio has-unrated-scenes tag state.
     defaultArgs:

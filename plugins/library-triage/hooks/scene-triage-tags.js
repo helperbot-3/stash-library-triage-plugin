@@ -927,6 +927,22 @@
     };
   }
 
+  function runFullRecountAction() {
+    var metricsResult = recountAllUnratedCounts();
+    if (metricsResult && metricsResult.Error) return metricsResult;
+
+    var tagsResult = runBackfillSceneTagsAction();
+    if (tagsResult && tagsResult.Error) return tagsResult;
+
+    return {
+      Output:
+        "Full triage recompute completed. " +
+        String((metricsResult && metricsResult.Output) || "") +
+        " " +
+        String((tagsResult && tagsResult.Output) || ""),
+    };
+  }
+
   function main() {
     var action = getAction();
 
@@ -938,6 +954,9 @@
     }
     if (action === "backfill_scene_tags") {
       return runBackfillSceneTagsAction();
+    }
+    if (action === "recount_all") {
+      return runFullRecountAction();
     }
 
     return runSceneTagAction();
