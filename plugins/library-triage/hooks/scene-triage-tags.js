@@ -888,6 +888,15 @@
 
     if (hookType === "Scene.Update.Post") {
       if (sceneUpdateNeedsGlobalRecount(hookContext)) {
+        var fieldsForWarn = Array.isArray(hookContext.inputFields) ? hookContext.inputFields.join(",") : "";
+        logRun(
+          "warning global recount selected trigger=" +
+            hookType +
+            " id=" +
+            String(hookContext.id || "") +
+            " inputFields=" +
+            fieldsForWarn
+        );
         var full = recountAllUnratedCounts();
         if (full && full.Output) {
           var fields = Array.isArray(hookContext.inputFields) ? hookContext.inputFields.join(",") : "";
