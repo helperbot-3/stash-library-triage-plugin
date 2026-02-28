@@ -109,7 +109,7 @@ Notes:
 ### Performer metrics + studio unrated tag
 - Triggered by:
   - `Scene.Create.Post`
-  - `Scene.Update.Post`
+  - `Scene.Update.Post` (fast path for rating/file changes, full recount when studio/performer links change)
   - `Scene.Destroy.Post`
   - `Performer.Update.Post`
 

@@ -658,6 +658,17 @@
     return true;
   }
 
+  function sceneUpdateNeedsGlobalRecount(hookContext) {
+    var fields = Array.isArray(hookContext.inputFields) ? hookContext.inputFields : [];
+    for (var i = 0; i < fields.length; i += 1) {
+      var f = String(fields[i] || "");
+      if (f === "performer_ids" || f === "performers" || f === "studio_id" || f === "studio") {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function runSceneTagAction() {
     var hookContext = getHookContext();
     if (!hookContext || !hookContext.id) {
@@ -753,7 +764,31 @@
       };
     }
 
-    if (hookType === "Scene.Update.Post" || hookType === "Scene.Destroy.Post") {
+    if (hookType === "Scene.Update.Post") {
+      if (sceneUpdateNeedsGlobalRecount(hookContext)) {
+        return recountAllUnratedCounts();
+      }
+
+      var sceneUpdateResult = refreshCountsForScene(String(hookContext.id));
+      var sceneUpdate = fetchSceneEntities(String(hookContext.id));
+      var studioUpdateChanged = 0;
+      if (sceneUpdate && sceneUpdate.studio && sceneUpdate.studio.id) {
+        studioUpdateChanged = syncStudioUnratedTag(String(sceneUpdate.studio.id), studioTagID) ? 1 : 0;
+      }
+      return {
+        Output:
+          "Refreshed performer metrics + studio tag from scene update " +
+          String(hookContext.id) +
+          ": checked=" +
+          sceneUpdateResult.checked +
+          ", performer_updated=" +
+          sceneUpdateResult.updated +
+          ", studio_tag_updated=" +
+          studioUpdateChanged,
+      };
+    }
+
+    if (hookType === "Scene.Destroy.Post") {
       return recountAllUnratedCounts();
     }
 
