@@ -163,7 +163,23 @@
   function getMarkerCopyTagNames() {
     var args = getArgs();
     var raw = args.marker_copy_tags != null ? args.marker_copy_tags : args.markerCopyTags;
-    var values = Array.isArray(raw) && raw.length ? raw : DEFAULT_MARKER_COPY_TAG_SELECTORS;
+    var values = null;
+
+    if (Array.isArray(raw) && raw.length) {
+      values = raw;
+    } else if (typeof raw === "string" && raw.trim()) {
+      // Canonical config format: JSON array string in plugin args.
+      try {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) {
+          values = parsed;
+        }
+      } catch (e) {
+        // Ignore invalid JSON and fall back to defaults.
+      }
+    }
+
+    if (!values) values = DEFAULT_MARKER_COPY_TAG_SELECTORS;
 
     var dedup = {};
     var out = [];
@@ -1297,15 +1313,19 @@
       var fields = Array.isArray(hookContext.inputFields) ? hookContext.inputFields : [];
       var tagFieldChanged = false;
       for (var f = 0; f < fields.length; f += 1) {
-        if (String(fields[f] || "") === "tag_ids") {
+        var fieldName = String(fields[f] || "");
+        if (fieldName === "tag_ids" || fieldName === "tags" || fieldName === "tagIds") {
           tagFieldChanged = true;
           break;
         }
       }
       var inputObj = hookContext.input && typeof hookContext.input === "object" ? hookContext.input : {};
-      var hasTagPayload = Object.prototype.hasOwnProperty.call(inputObj, "tag_ids") && inputObj.tag_ids != null;
+      var hasTagPayload =
+        (Object.prototype.hasOwnProperty.call(inputObj, "tag_ids") && inputObj.tag_ids != null) ||
+        (Object.prototype.hasOwnProperty.call(inputObj, "tags") && inputObj.tags != null) ||
+        (Object.prototype.hasOwnProperty.call(inputObj, "tagIds") && inputObj.tagIds != null);
       if (!tagFieldChanged || !hasTagPayload) {
-        return { Output: "Scene update had no concrete tag_ids change; marker tag sync skipped" };
+        return { Output: "Scene update had no concrete tag change payload; marker tag sync skipped" };
       }
     }
 

@@ -79,7 +79,7 @@ When a scene has at least one performer with `gender == FEMALE`, the plugin mana
 
 ### Optional marker tag sync (configurable)
 - You can configure tags that should be copied from scene to all scene markers.
-- Config key in hook/task args: `marker_copy_tags` (array of selector strings).
+- Config key in hook/task args: `marker_copy_tags` (JSON array string of selector strings).
 - Wildcard `*` is supported in selectors.
 - Example: `["girl-rated-*", "* years old", "Tag, With Comma"]`
 - Behavior:
@@ -124,7 +124,7 @@ Notes:
 ### Marker tag sync (optional)
 - Triggered by:
   - `Scene.Create.Post`
-  - `Scene.Update.Post` (only when `tag_ids` is concretely provided)
+  - `Scene.Update.Post` (when update payload includes a concrete tag change, e.g. `tag_ids`/`tags`)
 - Uses `marker_copy_tags` from plugin hook args.
 
 ### Performer metrics + studio unrated tag
