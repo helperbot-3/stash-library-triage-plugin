@@ -1019,6 +1019,8 @@
       if (sceneFields.length > 0) {
         var relevantSceneChanges = {
           date: true,
+          rating100: true,
+          rating: true,
           performer_ids: true,
           performerIds: true,
           performers: true,
@@ -1031,7 +1033,7 @@
           }
         }
         if (!hasRelevantSceneChange) {
-          return { Output: "Scene update had no date/performer changes, skipping scene tag recompute" };
+          return { Output: "Scene update had no date/rating/performer changes, skipping scene tag recompute" };
         }
       }
     }
