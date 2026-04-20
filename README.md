@@ -124,6 +124,8 @@ Notes:
   - `Scene.Create.Post`
   - `Scene.Update.Post` (only when update payload includes concrete scene date, scene rating, or scene performer changes)
   - `Performer.Update.Post` (when relevant performer fields changed)
+- Exception:
+  - if the scene update includes `tag_ids`, scene triage recompute is skipped so manual scene tag edits are preserved
 
 ### Marker tag sync (optional)
 - Triggered by:

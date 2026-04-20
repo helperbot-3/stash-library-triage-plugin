@@ -949,7 +949,14 @@
   }
 
   function shouldRecomputeSceneTagsOnSceneUpdate(hookContext) {
+    var fields = Array.isArray(hookContext.inputFields) ? hookContext.inputFields : [];
     var input = hookContext && hookContext.input && typeof hookContext.input === "object" ? hookContext.input : {};
+
+    // Scene edit forms can submit a broad payload. If tag_ids is present, preserve
+    // manual scene tag edits instead of immediately re-deriving managed age tags.
+    for (var i = 0; i < fields.length; i += 1) {
+      if (String(fields[i] || "") === "tag_ids") return false;
+    }
 
     if (hasOwn(input, "date")) return true;
     if (hasOwn(input, "rating100")) return true;
