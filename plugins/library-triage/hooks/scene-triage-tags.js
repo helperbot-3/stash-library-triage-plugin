@@ -880,27 +880,26 @@
     return true;
   }
 
+  function hasOwn(obj, key) {
+    return Object.prototype.hasOwnProperty.call(obj, key);
+  }
+
+  function relationshipBulkValueHasChange(v) {
+    if (Array.isArray(v)) return false;
+    if (!v || typeof v !== "object") return false;
+    if (Array.isArray(v.ids) && v.ids.length > 0) return true;
+    if (typeof v.mode === "string" && v.mode.trim() !== "") return true;
+    return Object.keys(v).length > 0;
+  }
+
   function sceneUpdateNeedsGlobalRecount(hookContext) {
     var fields = Array.isArray(hookContext.inputFields) ? hookContext.inputFields : [];
     var input = hookContext && hookContext.input && typeof hookContext.input === "object" ? hookContext.input : {};
-
-    function hasOwn(obj, key) {
-      return Object.prototype.hasOwnProperty.call(obj, key);
-    }
 
     function isNonNilValue(v) {
       if (v == null) return false;
       if (typeof v === "string") return v.trim() !== "";
       return true;
-    }
-
-    function relationshipBulkValueHasChange(v) {
-      if (Array.isArray(v)) return false;
-      if (!v || typeof v !== "object") return false;
-      if (Array.isArray(v.ids) && v.ids.length > 0) return true;
-      if (typeof v.mode === "string" && v.mode.trim() !== "") return true;
-      // If object exists (even empty ids), treat as explicit relationship update intent.
-      return Object.keys(v).length > 0;
     }
 
     // Bulk scene updates include "ids" and often carry relationship keys even for rating-only edits.
@@ -946,6 +945,20 @@
         return true;
       }
     }
+    return false;
+  }
+
+  function shouldRecomputeSceneTagsOnSceneUpdate(hookContext) {
+    var input = hookContext && hookContext.input && typeof hookContext.input === "object" ? hookContext.input : {};
+
+    if (hasOwn(input, "date")) return true;
+    if (hasOwn(input, "rating100")) return true;
+    if (hasOwn(input, "rating")) return true;
+
+    if (hasOwn(input, "performers") && input.performers != null) return true;
+    if (hasOwn(input, "performer_ids") && relationshipBulkValueHasChange(input.performer_ids)) return true;
+    if (hasOwn(input, "performerIds") && relationshipBulkValueHasChange(input.performerIds)) return true;
+
     return false;
   }
 
@@ -1015,26 +1028,8 @@
     var hookType = String(hookContext.type || "");
 
     if (hookType === "Scene.Update.Post") {
-      var sceneFields = Array.isArray(hookContext.inputFields) ? hookContext.inputFields : [];
-      if (sceneFields.length > 0) {
-        var relevantSceneChanges = {
-          date: true,
-          rating100: true,
-          rating: true,
-          performer_ids: true,
-          performerIds: true,
-          performers: true,
-        };
-        var hasRelevantSceneChange = false;
-        for (var sf = 0; sf < sceneFields.length; sf += 1) {
-          if (relevantSceneChanges[String(sceneFields[sf] || "")]) {
-            hasRelevantSceneChange = true;
-            break;
-          }
-        }
-        if (!hasRelevantSceneChange) {
-          return { Output: "Scene update had no date/rating/performer changes, skipping scene tag recompute" };
-        }
+      if (!shouldRecomputeSceneTagsOnSceneUpdate(hookContext)) {
+        return { Output: "Scene update had no concrete date/rating/performer payload, skipping scene tag recompute" };
       }
     }
 

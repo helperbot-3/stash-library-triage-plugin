@@ -122,7 +122,7 @@ Notes:
 ### Scene triage tags
 - Triggered by:
   - `Scene.Create.Post`
-  - `Scene.Update.Post` (only when scene date, scene rating, or scene performers changed)
+  - `Scene.Update.Post` (only when update payload includes concrete scene date, scene rating, or scene performer changes)
   - `Performer.Update.Post` (when relevant performer fields changed)
 
 ### Marker tag sync (optional)
